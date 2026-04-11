@@ -1,0 +1,18 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# Shapefile (download via Census Bureau — see README)
+dataset/cb_2020_06_cousub_500k/
+
+# Raw yearly FIRMS CSVs (already combined into firms_california_combined.csv)
+dataset/raw data/
+
+# macOS
+.DS_Store
+**/.DS_Store
