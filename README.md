@@ -130,7 +130,91 @@ Creates a daily county-level weather table from Open-Meteo and engineers feature
 
 - **Panel size:** ~233k county-day rows (58 counties × 2010–2020 daily dates)
 
+## Phase 3 — Exploratory Data Analysis & Preprocessing (EDA & Data Prep)
+This phase analyzes the dataset and prepares it for machine learning models by handling missing values, outliers, encoding, and dataset splitting.
+
+---
+
+### Exploratory Data Analysis (EDA)
+
+Performed comprehensive analysis with **15+ visualizations**:
+
+- **Class Distribution:** Highly imbalanced dataset (~2–4% fire days)
+- **Seasonality:** Fire activity peaks during **June–October**
+- **Yearly Trends:** Significant variation with spikes (e.g., 2018, 2020)
+- **Top Counties:** Fire activity concentrated in specific regions (e.g., Tulare, Fresno)
+- **Correlation Analysis:**  
+  - Temperature → positive correlation with fire risk  
+  - Humidity → negative correlation  
+  - VPD & drought index → strong indicators
+- **Feature Distributions:** Fire days occur under **hotter, drier, and windier conditions**
+- **Rolling Features:** Sustained heat/dryness strongly linked to fires
+- **Geospatial Map:** County-level wildfire activity visualization
+
+Notebook: `Exploratory_Data_Analysis.ipynb`
+
+---
+
+### Preprocessing Pipeline
+
+#### 1. Missing Values
+- Applied **KNN Imputation (k=5)** to weather and engineered features
+
+#### 2. Outlier Handling
+- Applied **IQR capping** to:
+  - `temp_max`
+  - `wind_speed`
+
+#### 3. Time-Based Split (No Random Split)
+- **Train:** 2010–2017  
+- **Validation:** 2018–2019  
+- **Test:** 2020  
+
+#### 4. Encoding
+- One-hot encoding applied to `county`
+- Ensured consistent feature space across splits
+
+#### 5. Feature Handling for Modeling
+- Dropped leakage features for classification models:
+  - `max_frp`
+  - `max_brightness`
+  - `fire_count`
+- These features are **retained in datasets** for regression tasks
+
+#### 6. Class Imbalance Handling
+- Applied **SMOTE (training set only)** to balance classes
+
+#### 7. Scaling
+- `StandardScaler` fitted on training data
+- Saved as `scaler.pkl`
+- Applied later during model training (for Logistic Regression and SVM)
+
+---
+
+### Output Files
+
+| File | Description |
+|------|------------|
+| `train.csv` | Full training dataset (includes `fire_label` and `max_frp`) |
+| `val.csv` | Validation dataset |
+| `test.csv` | Test dataset |
+| `train_smote.csv` | Balanced training dataset (classification only) |
+| `scaler.pkl` | Saved scaler (fit on training data only) |
+
+---
+
+### Modeling Compatibility
+
+- **Classification Task:** Predict `fire_label`
+- **Regression Task:** Predict `max_frp` (only for fire days)
+
+Note:
+- `max_frp` is preserved in datasets to support regression modeling
+- SMOTE is applied **only on training data**
+- No data leakage introduced in classification features
+
 ## Contributors
 
 - Dipin Jassal
 - Huu Nguyen
+- Samruddhi Chitnis
