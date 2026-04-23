@@ -8,14 +8,32 @@ The model predicts whether a wildfire will occur in a given California county on
 
 ## Dataset
 
+### 1) NASA FIRMS fire data
+
 **Source:** NASA FIRMS MODIS Collection 6.1 Active Fire Product  
 **Region:** California (lat 32.5–42.0, lon -124.5 to -114.0)  
 **Date range:** 2016-01-01 to 2025-12-31  
 **Filter:** `type == 0` (presumed vegetation fire) and `confidence >= 80`
 
+### 2) California county boundaries
+
 **County boundaries:** US Census Bureau TIGER/Line 2020 county subdivision shapefile  
 Download: `https://www2.census.gov/geo/tiger/GENZ2020/shp/cb_2020_06_cousub_500k.zip`  
 Place extracted folder at `dataset/cb_2020_06_cousub_500k/` before running the pipeline.
+
+### 3) Open-Meteo historical weather data
+
+- Source: Open-Meteo Historical API
+- Coverage: daily weather for county centroids from **2010-01-01 to 2020-12-31**
+- Weather fields collected:
+  - `temp_max`
+  - `temp_min`
+  - `humidity`
+  - `wind_speed`
+  - `precipitation`
+- Output from Phase 2:
+  - `weather_by_county.csv`
+  - `dataset_with_all_features.csv`
 
 ## Repository Structure
 
@@ -79,6 +97,40 @@ Reads yearly FIRMS CSVs, concatenates them, filters to `type==0` and `confidence
 pip install pandas geopandas shapely
 ```
 
+## Phase 2 — Weather data & feature engineering (`Weather_Data_and_Feature_Engineering.ipynb`)
+
+Creates a daily county-level weather table from Open-Meteo and engineers features for modeling.
+
+**Step 2A — County centroids**
+- Loads the California counties shapefile and computes 58 county centroids (lat/lon) for weather queries.
+
+**Step 2B — Download daily Open-Meteo weather (2010–2020)**
+- Queries Open-Meteo Historical API for each county centroid (daily):
+  - `temperature_2m_max` → `temp_max`
+  - `temperature_2m_min` → `temp_min`
+  - `windspeed_10m_max` → `wind_speed`
+  - `precipitation_sum` → `precipitation`
+  - `dewpoint_2m_mean` (used to compute humidity)
+- Computes relative humidity from dewpoint (Tetens approximation).
+- Writes `weather_by_county.csv` (233,044 rows = 58 counties × 4,018 days).
+
+**Step 2C — Merge + engineer features**
+- Merges `weather_by_county.csv` with `base_dataset.csv` on (`county`, `date`).
+- Engineers the following features:
+  - **Calendar**: `month`, `month_sin`, `month_cos`, `day_of_year`, `weekend_flag`, `fire_season_flag` (Jun–Nov)
+  - **Drought index**: consecutive dry days where `precipitation < 0.1` (resets on rain day)
+  - **Rolling means** (per county, `min_periods=1`):  
+    `temp_max_{7,14,30}d_rolling_mean`, `humidity_{7,14,30}d_rolling_mean`
+  - **Temperature anomaly**: `temperature_anomaly = temp_max - temp_max_30d_rolling_mean`
+  - **VPD**: `vpd = (1 - humidity/100) * 0.6108 * exp(17.27*temp_max/(temp_max + 237.3))`
+  - **Interactions**: `wind_speed_drought_interaction`, `temp_max_humidity_interaction`
+- Writes `dataset_with_all_features.csv` (28 columns total in the notebook output).
+
+### Key Stats
+
+- **Panel size:** ~233k county-day rows (58 counties × 2010–2020 daily dates)
+
 ## Contributors
 
 - Dipin Jassal
+- Huu Nguyen
